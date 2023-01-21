@@ -1,0 +1,179 @@
+﻿@page "/users"
+
+@using BlazorPro.Spinkit
+@using UserDataManager.Shared.User.Models
+@inject IJSRuntime JSRuntime
+@inject HttpClient client
+
+<div class="container">  
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <p class="mb-0">
+                        <a href="/users/add" class="text-center">New user</a>
+                    </p>
+                    </div>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Collapse">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button type="button" class="btn btn-tool" data-card-widget="remove" title="Remove">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <h3><b>Users</b></h3>    
+            <SpinLoader IsLoading="isLoading">
+                <LoadingTemplate>
+                    <div class="col-12" style="background-color: lightgray; height:400px; vertical-align:middle">
+                        <br /><br />
+                        <Chase Center="true" Color="#c21f13" Size="70px"></Chase>
+                    </div>
+                </LoadingTemplate>
+                <ContentTemplate>
+                    @if (filteredUserList != null)
+                    {
+                        <GridView Items="filteredUserList" ReloadList="IsGridViewFiltered">
+                            <GridColumns>
+                                <GridColumn ColumnTitle="UserId"
+                                            OnSearchTextChanged="@(e => OnUserSearchTextChanged(e, "Id"))"></GridColumn>
+                                <GridColumn ColumnTitle="Name"
+                                            OnSearchTextChanged="@(e => OnUserSearchTextChanged(e, "Name"))"></GridColumn>
+                                <GridColumn ColumnTitle="LastName"
+                                            OnSearchTextChanged="@(e => OnUserSearchTextChanged(e, "LastName"))"></GridColumn>
+                                <GridColumn ColumnTitle="BirthDate"
+                                            OnSearchTextChanged="@(e => OnUserSearchTextChanged(e, "BirthDate"))"></GridColumn>
+                                <GridColumn ColumnTitle="Gender"
+                                            OnSearchTextChanged="@(e => OnUserSearchTextChanged(e, "Gender"))"></GridColumn>
+                                <GridColumn ColumnTitle="Actions"></GridColumn>
+
+                            </GridColumns>
+                            <GridRow Context="User">                                
+                                <td>
+                                    <NavLink href=@string.Format("/users/edit/{0}", @User.Id)>
+                                        @User.Id
+                                    </NavLink>
+                                </td>
+                                <td>@User.Name</td>
+                                <td>@User.LastName</td>
+                                <td>@User.BirthDate.ToString("dd/MM/yyyy")</td>
+                                <td>@User.Gender</td>                               
+                                <th>
+                                    <a class="btn btn-primary fa-solid fa-pencil" href="/users/edit/@User.Id">
+                                        <i class="">
+                                        </i>
+                                        Edit
+                                    </a>
+                                    <a class="btn btn-danger fa-solid fa-trash" @onclick="() => DeleteUser(User.Id)" href="#">
+                                        <i class="">
+                                        </i>
+                                        Delete
+                                    </a>
+                                </th>
+                                
+ @*                                       <th>
+                                            <a style="text-underline-position:below; cursor:pointer; color:blue" @onclick="(() => EditUser(User))"><i class="fa-solid fa-pencil"></i>Edit</a>
+                                            <a style="text-underline-position:below; cursor:pointer; color:blue" @onclick="(() => DeleteUser(User.Id))"><i class="fa-solid fa-trash"></i>Delete</a>
+                                        </th>*@
+                            </GridRow>
+                        </GridView>
+                    }
+                </ContentTemplate>
+            </SpinLoader>
+        </div>
+    </div>
+</div>
+
+@code {
+    public UserVm User { get; set; }
+    public List<UserVm> userList { get; set; }
+    public List<UserVm> filteredUserList { get; set; }
+    public UserAttributeVm UserAttribute { get; set; }
+    public bool IsGridViewFiltered { get; set; }
+    bool isLoading = true;
+    public string userRelativeUrl = "api/users";
+    public string[] Genders = { "male", "female" }; 
+
+
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        User = new UserVm() {Attributes = new List<UserAttributeVm>()};
+        userList = new List<UserVm>();
+        UserAttribute = new UserAttributeVm();
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadUsers();
+
+            isLoading = false;
+
+            StateHasChanged();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task LoadUsers()
+    {
+        userList = filteredUserList = await client.GetFromJsonAsync<List<UserVm>>(userRelativeUrl + "/getUsers");
+
+        StateHasChanged();
+    }
+
+    private async Task SaveUser()
+    {       
+        await client.PostAsJsonAsync<UserVm>(userRelativeUrl + "/addUser", User);
+        await LoadUsers();
+    }
+
+    private async Task DeleteUser(int id)
+    {
+        await client.DeleteAsync(userRelativeUrl + $"/deleteUser/{id}");
+        await LoadUsers();
+    }
+    private void AddAttribute()
+    {
+        User.Attributes.Add(UserAttribute);
+    }
+
+    private void OnUserSearchTextChanged(ChangeEventArgs changeEventArgs, string columnTitle)
+    {
+        string searchText = changeEventArgs.Value.ToString();
+        IsGridViewFiltered = true;
+
+        switch (columnTitle)
+        {
+            case "Id":
+                filteredUserList = userList.Where(u => u.Id.ToString().Contains(searchText)).ToList();
+                break;
+            case "Name":
+                filteredUserList = userList.Where(u => u.Name.ToLower().Contains(searchText)).ToList();
+                break;
+            case "LastName":
+                filteredUserList = userList.Where(u => u.LastName.ToLower().Contains(searchText)).ToList();
+                break;
+            case "BirthDate":
+                filteredUserList = userList;
+                break;
+            case "Gender":
+                filteredUserList = userList.Where(u => u.Gender.ToLower().Contains(searchText)).ToList();
+                break;
+            default:
+                Console.WriteLine("Default case");
+                break;
+        }
+    }
+}
