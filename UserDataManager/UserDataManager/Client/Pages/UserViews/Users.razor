@@ -1,6 +1,8 @@
 ﻿@page "/users"
 
 @using BlazorPro.Spinkit
+@using System.Text
+@using System.Text.Json
 @using UserDataManager.Shared.User.Models
 @inject IJSRuntime JSRuntime
 @inject HttpClient client
@@ -62,28 +64,34 @@
                                 <td>@User.BirthDate.ToString("dd/MM/yyyy")</td>
                                 <td>@User.Gender</td>                               
                                 <th>
-                                    <a class="btn btn-primary fa-solid fa-pencil" href="/users/edit/@User.Id">
-                                        <i class="">
+                                    <a class="btn btn-primary btn-sm" href="/users/edit/@User.Id">
+                                        <i class="fa-solid fa-pencil">
                                         </i>
                                         Edit
                                     </a>
-                                    <a class="btn btn-danger fa-solid fa-trash" @onclick="() => DeleteUser(User.Id)" href="#">
-                                        <i class="">
+                                    <a class="btn btn-danger btn-sm" @onclick="() => DeleteUser(User.Id)" href="#">
+                                        <i class="fa-solid fa-trash">
                                         </i>
                                         Delete
                                     </a>
-                                </th>
-                                
- @*                                       <th>
-                                            <a style="text-underline-position:below; cursor:pointer; color:blue" @onclick="(() => EditUser(User))"><i class="fa-solid fa-pencil"></i>Edit</a>
-                                            <a style="text-underline-position:below; cursor:pointer; color:blue" @onclick="(() => DeleteUser(User.Id))"><i class="fa-solid fa-trash"></i>Delete</a>
-                                        </th>*@
+                                </th>                              
                             </GridRow>
                         </GridView>
                     }
                 </ContentTemplate>
             </SpinLoader>
         </div>
+    </div>
+    <div class="dropdown" style="float: right">
+        <button class="btn" style="background : grey" @onclick="@(async() => await DownloadFile())"><i class="fa fa-download"></i>Download report</button>
+            @if (IsDownloadStarted == 1)
+            {
+                <p>Downloading...Please wait</p>
+            }
+            else if (IsDownloadStarted == 2)
+            {
+                <p>Download complete.</p>
+            }
     </div>
 </div>
 
@@ -113,16 +121,16 @@
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
+    {       
         if (firstRender)
         {
             await LoadUsers();
-
+            
             isLoading = false;
 
             StateHasChanged();
         }
-
+        
         await base.OnAfterRenderAsync(firstRender);
     }
 
@@ -176,4 +184,24 @@
                 break;
         }
     }
+
+    public int IsDownloadStarted { get; set; } = 0;
+
+    protected async Task DownloadFile()
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Do you want to Export?"))
+        {
+            IsDownloadStarted = 1;
+            StateHasChanged();
+
+            var jsonString = JsonSerializer.Serialize(filteredUserList);
+
+			var fileBytes = await client.GetFromJsonAsync<byte[]>($"/api/export/{jsonString}");
+			var fileName = $"{DateTime.Now.ToString(System.Globalization.CultureInfo.InvariantCulture)}.xlsx";
+			await JSRuntime.InvokeAsync<object>("saveAsFile", fileName, Convert.ToBase64String(fileBytes));
+
+			IsDownloadStarted = 2;
+		}
+	}
+
 }

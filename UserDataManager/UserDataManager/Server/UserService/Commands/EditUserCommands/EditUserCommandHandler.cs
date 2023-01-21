@@ -35,15 +35,17 @@ namespace UserDataManager.Server.UsersHandlers.Commands.EditUserCommands
             {
                 if (userAtributes.Count() > 0) 
                 {
-                    var test = userAtributes.Contains(new UserAttribute() { Name = atr.Name, Value = atr.Value});
-
                     var isAttributeExists = userAtributes.FirstOrDefault(a => a.Name == atr.Name && a.Value == atr.Value);
                     if(isAttributeExists == null)
                     {
                         var attributeToAdd = new UserAttribute() { Name = atr.Name, Value = atr.Value, UserId = userToEdit.Id };
                         userToEdit.Attributes.Add(attributeToAdd);
                     }
-                }               
+                }
+                else
+                {
+                    userToEdit.Attributes.Add(new UserAttribute() { Name = atr.Name, Value = atr.Value, UserId = userToEdit.Id });
+                }
             }
         }
     }
